@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KaraokeCompass 🎤</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0b18;
+      --surface: rgba(255,255,255,0.055);
+      --surface-hover: rgba(255,255,255,0.09);
+      --border: rgba(255,255,255,0.1);
+      --border-bright: rgba(255,255,255,0.2);
+      --primary: #7c3aed;
+      --primary-light: #a855f7;
+      --primary-glow: rgba(124,58,237,0.35);
+      --cyan: #06b6d4;
+      --rose: #f43f5e;
+      --green: #10b981;
+      --gold: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --card: rgba(255,255,255,0.04);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 45% at 15% 15%, rgba(124,58,237,0.18) 0%, transparent 65%),
+        radial-gradient(ellipse 55% 35% at 85% 85%, rgba(6,182,212,0.12) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 25% at 50% 55%, rgba(244,63,94,0.06) 0%, transparent 60%);
+    }
+
+    /* Floating notes */
+    #stage { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .note {
+      position: absolute; bottom: -2rem; opacity: 0;
+      animation: floatUp linear infinite;
+      font-size: 1.2rem;
+      user-select: none;
+    }
+    @keyframes floatUp {
+      0%   { opacity: 0; transform: translateY(0) rotate(0deg) scale(0.8); }
+      8%   { opacity: 0.25; }
+      90%  { opacity: 0.1; }
+      100% { opacity: 0; transform: translateY(-105vh) rotate(540deg) scale(1.1); }
+    }
+
+    /* App shell */
+    .app {
+      position: relative; z-index: 1;
+      max-width: 780px; margin: 0 auto;
+      padding: 1.5rem 1rem 4rem;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+    }
+
+    /* Logo */
+    .logo-row {
+      text-align: center; margin-bottom: 1.5rem; width: 100%;
+    }
+    .logo {
+      font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--primary-light) 0%, var(--cyan) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .sub { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; letter-spacing: 0.04em; }
+
+    /* Progress */
+    #progressWrap { width: 100%; margin-bottom: 1.75rem; display: none; }
+    .progress-track { height: 3px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--cyan));
+      transition: width 0.55s cubic-bezier(.4,0,.2,1);
+      width: 0%;
+    }
+    .progress-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.5rem; letter-spacing: 0.06em; text-transform: uppercase; }
+
+    /* Screens */
+    .screen { display: none; width: 100%; flex-direction: column; align-items: center; animation: fadeUp 0.38s ease; }
+    .screen.active { display: flex; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 1.5rem;
+      padding: 2rem;
+      width: 100%;
+      backdrop-filter: blur(12px);
+    }
+
+    /* Typography */
+    h1 { font-size: clamp(2rem, 5vw, 2.8rem); font-weight: 900; line-height: 1.15; letter-spacing: -1px; }
+    h2 { font-size: clamp(1.4rem, 4vw, 1.8rem); font-weight: 800; letter-spacing: -0.5px; }
+    h3 { font-size: 1.1rem; font-weight: 700; }
+    .lead { font-size: 1.05rem; color: var(--muted); line-height: 1.65; }
+
+    .step-label {
+      font-size: 0.72rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 0.8rem 2rem; border-radius: 0.875rem;
+      font-weight: 700; font-size: 0.95rem;
+      cursor: pointer; transition: all 0.2s; border: none;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: #fff; box-shadow: 0 4px 20px var(--primary-glow);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--primary-glow); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-secondary {
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--surface-hover); border-color: var(--border-bright); transform: translateY(-1px); }
+    .btn-lg { padding: 1rem 2.5rem; font-size: 1.05rem; border-radius: 1rem; }
+
+    /* Option grid */
+    .opt-grid { display: grid; gap: 0.85rem; width: 100%; margin: 1.25rem 0; }
+    .opt-grid.c2 { grid-template-columns: repeat(2, 1fr); }
+    .opt-grid.c3 { grid-template-columns: repeat(3, 1fr); }
+
+    .opt {
+      background: var(--surface); border: 2px solid var(--border);
+      border-radius: 1.1rem; padding: 1.2rem 1rem;
+      cursor: pointer; transition: all 0.2s; text-align: center;
+    }
+    .opt:hover { background: var(--surface-hover); border-color: rgba(168,85,247,0.5); transform: translateY(-2px); }
+    .opt.sel { background: rgba(124,58,237,0.18); border-color: var(--primary-light); box-shadow: 0 0 0 1px var(--primary-light); }
+    .opt-icon { font-size: 2rem; display: block; margin-bottom: 0.45rem; }
+    .opt-name { font-weight: 700; font-size: 0.92rem; }
+    .opt-hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* ─── WELCOME SCREEN ─── */
+    .hero { text-align: center; }
+    .hero-mic { font-size: 4.5rem; display: block; margin-bottom: 1.25rem; line-height: 1; }
+    .hero h1 { margin-bottom: 1.1rem; }
+    .hero .lead { max-width: 500px; margin: 0 auto 2rem; }
+    .features {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 0.85rem; margin-bottom: 2.25rem;
+    }
+    .feature {
+      padding: 1rem 0.75rem; background: var(--surface);
+      border-radius: 1rem; border: 1px solid var(--border);
+    }
+    .feature-icon { font-size: 1.6rem; display: block; margin-bottom: 0.4rem; }
+    .feature-text { font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+
+    /* ─── TONE TEST SCREEN ─── */
+    .tone-hero { text-align: center; margin: 1.5rem 0; }
+    .note-name {
+      font-size: 4.5rem; font-weight: 900; line-height: 1; letter-spacing: -2px;
+      background: linear-gradient(135deg, var(--primary-light), var(--cyan));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .note-octave { font-size: 1rem; color: var(--muted); margin-top: 0.3rem; }
+
+    /* Piano mini-viz */
+    .piano-range {
+      display: flex; justify-content: center; align-items: flex-end;
+      gap: 3px; margin: 1rem auto; height: 50px; max-width: 320px;
+    }
+    .piano-key {
+      flex: 1; max-width: 22px; border-radius: 0 0 4px 4px;
+      transition: all 0.3s;
+    }
+    .piano-key.white { height: 50px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.08); }
+    .piano-key.black { height: 34px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.06); }
+    .piano-key.active { background: linear-gradient(180deg, var(--primary-light), var(--cyan)); }
+
+    /* Play button */
+    .play-ring {
+      width: 90px; height: 90px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; border: none;
+      box-shadow: 0 6px 28px var(--primary-glow);
+      transition: all 0.2s; margin: 0 auto 1.5rem;
+      font-size: 1.9rem;
+    }
+    .play-ring:hover { transform: scale(1.08); box-shadow: 0 10px 36px var(--primary-glow); }
+    .play-ring.playing { animation: ringPulse 1.1s ease-in-out infinite; }
+    @keyframes ringPulse {
+      0%, 100% { box-shadow: 0 6px 28px var(--primary-glow); }
+      50%  { box-shadow: 0 6px 28px var(--primary-glow), 0 0 0 14px rgba(124,58,237,0.12); }
+    }
+
+    /* Wave canvas */
+    #waveCanvas {
+      width: 100%; height: 52px; display: block; border-radius: 0.75rem;
+      background: rgba(255,255,255,0.025); margin-bottom: 1.25rem;
+    }
+
+    /* Response buttons */
+    .resp-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.85rem; }
+    .resp-btn {
+      padding: 1rem 0.5rem; border-radius: 1rem;
+      border: 2px solid var(--border); background: var(--surface);
+      color: var(--text); cursor: pointer; font-family: inherit;
+      display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+      transition: all 0.2s; font-weight: 600; font-size: 0.88rem;
+    }
+    .resp-btn .icon { font-size: 1.75rem; }
+    .resp-btn .hint { font-size: 0.7rem; color: var(--muted); }
+    .resp-low:hover  { border-color: var(--rose);  background: rgba(244,63,94,0.12); }
+    .resp-ok:hover   { border-color: var(--green); background: rgba(16,185,129,0.12); }
+    .resp-high:hover { border-color: var(--cyan);  background: rgba(6,182,212,0.12); }
+
+    /* Test dots */
+    .dots { display: flex; justify-content: center; gap: 0.5rem; margin-top: 1.5rem; }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--border); transition: all 0.3s;
+    }
+    .dot.current { background: var(--primary-light); transform: scale(1.3); }
+    .dot.ok    { background: var(--green); }
+    .dot.low   { background: var(--rose); }
+    .dot.high  { background: var(--cyan); }
+
+    /* Mic strip */
+    .mic-strip {
+      margin-top: 1.25rem; text-align: center;
+    }
+
+    /* ─── RESULTS SCREEN ─── */
+    .voice-badge {
+      display: flex; align-items: center; justify-content: center;
+      gap: 1rem; margin: 1.5rem 0;
+      padding: 1.25rem 2rem;
+      background: linear-gradient(135deg, rgba(124,58,237,0.22), rgba(6,182,212,0.12));
+      border: 1px solid rgba(124,58,237,0.4);
+      border-radius: 1.5rem;
+    }
+    .vb-emoji { font-size: 2.75rem; }
+    .vb-name {
+      font-size: 2rem; font-weight: 900; letter-spacing: -1px;
+      background: linear-gradient(135deg, var(--primary-light), var(--cyan));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .vb-range { font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; }
+    .voice-desc { color: var(--muted); line-height: 1.6; font-size: 0.95rem; max-width: 540px; text-align: center; margin: 0 auto 0.5rem; }
+
+    /* Filter chips */
+    .chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .chip {
+      padding: 0.38rem 1rem; border-radius: 2rem;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--muted); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; font-family: inherit;
+    }
+    .chip:hover { border-color: var(--primary-light); color: var(--text); }
+    .chip.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    /* Song cards */
+    .songs { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; }
+    .song-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 1.1rem; padding: 1rem 1.1rem;
+      display: flex; align-items: center; gap: 1rem;
+      transition: all 0.2s;
+    }
+    .song-card:hover { background: var(--surface-hover); border-color: rgba(168,85,247,0.35); transform: translateX(4px); }
+    .song-num {
+      width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.82rem;
+    }
+    .song-info { flex: 1; min-width: 0; }
+    .song-title { font-weight: 700; font-size: 0.97rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .song-artist { font-size: 0.82rem; color: var(--muted); margin-top: 0.12rem; }
+    .song-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem; }
+    .tag {
+      padding: 0.18rem 0.55rem; border-radius: 0.45rem;
+      font-size: 0.68rem; font-weight: 600;
+      background: rgba(124,58,237,0.18); border: 1px solid rgba(168,85,247,0.25);
+      color: var(--primary-light);
+    }
+    .tag.crowd { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.25); color: var(--gold); }
+    .tag.easy  { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.25); color: var(--green); }
+    .song-right { text-align: right; flex-shrink: 0; }
+    .stars { color: var(--gold); font-size: 0.72rem; letter-spacing: 0; }
+    .diff-label { font-size: 0.65rem; color: var(--muted); margin-top: 0.2rem; }
+
+    /* Results header row */
+    .res-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; width: 100%; }
+
+    /* Divider */
+    .divider { height: 1px; background: var(--border); width: 100%; margin: 1.5rem 0; }
+
+    /* Responsive */
+    @media (max-width: 580px) {
+      .features { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+      .opt-grid.c3 { grid-template-columns: repeat(3, 1fr); }
+      .resp-row { grid-template-columns: 1fr; }
+      .card { padding: 1.25rem; }
+      .vb-name { font-size: 1.5rem; }
+    }
+
+    /* Mic meter */
+    .mic-meter {
+      height: 8px; border-radius: 4px; background: var(--border);
+      overflow: hidden; margin-top: 0.75rem; display: none;
+    }
+    .mic-meter-fill {
+      height: 100%; width: 0%; border-radius: 4px;
+      background: linear-gradient(90deg, var(--green), var(--gold), var(--rose));
+      transition: width 0.08s linear;
+    }
+    .mic-note { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; display: none; }
+    .mic-detected { color: var(--cyan); font-weight: 700; }
+
+    /* Empty state */
+    .empty { text-align: center; color: var(--muted); padding: 2.5rem 0; font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+
+<!-- Ambient floating notes -->
+<div id="stage"></div>
+
+<div class="app">
+
+  <!-- Logo -->
+  <div class="logo-row">
+    <div class="logo">🎤 KaraokeCompass</div>
+    <div class="sub">Navigate to your perfect song</div>
+  </div>
+
+  <!-- Progress -->
+  <div id="progressWrap">
+    <div class="progress-label" id="progressLabel">Starting up</div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <!-- ══════════════════════════ WELCOME ══════════════════════════ -->
+  <div class="screen active" id="sc-welcome">
+    <div class="card">
+      <div class="hero">
+        <span class="hero-mic">🎤</span>
+        <h1>Find Your Perfect<br>Karaoke Song</h1>
+        <p class="lead" style="margin-top:0.75rem">
+          We'll listen to how your voice reacts to a few notes — then match you with songs that'll make the crowd go wild.
+        </p>
+        <div class="features">
+          <div class="feature">
+            <span class="feature-icon">🎵</span>
+            <div class="feature-text">Listen to tones &amp; rate your comfort</div>
+          </div>
+          <div class="feature">
+            <span class="feature-icon">🎯</span>
+            <div class="feature-text">We figure out your vocal range</div>
+          </div>
+          <div class="feature">
+            <span class="feature-icon">🎶</span>
+            <div class="feature-text">Get curated karaoke picks</div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg" onclick="startApp()">Let's find my songs ▶</button>
+        <div style="font-size:0.78rem; color:var(--muted); margin-top:0.85rem">Takes about 2 minutes · No singing experience needed</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ PREFERENCES ══════════════════════════ -->
+  <div class="screen" id="sc-prefs">
+    <div class="card">
+      <div class="step-label">Step 1 of 3 — About Your Voice</div>
+      <h2 style="margin-bottom:0.35rem">Quick questions first</h2>
+      <p class="lead" style="font-size:0.9rem; margin-bottom:1.5rem">This helps us start the tone test in the right range for you.</p>
+
+      <h3 style="margin-bottom:0.85rem">How would you describe your voice?</h3>
+      <div class="opt-grid c3" id="genderOpts">
+        <div class="opt" onclick="pick('gender','male',this)">
+          <span class="opt-icon">♂️</span>
+          <div class="opt-name">Lower</div>
+          <div class="opt-hint">Bass · Baritone · Tenor</div>
+        </div>
+        <div class="opt" onclick="pick('gender','female',this)">
+          <span class="opt-icon">♀️</span>
+          <div class="opt-name">Higher</div>
+          <div class="opt-hint">Alto · Mezzo · Soprano</div>
+        </div>
+        <div class="opt" onclick="pick('gender','unsure',this)">
+          <span class="opt-icon">🤷</span>
+          <div class="opt-name">Not Sure</div>
+          <div class="opt-hint">We'll figure it out</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:1.4rem; margin-bottom:0.85rem">How much have you sung before?</h3>
+      <div class="opt-grid c3" id="expOpts">
+        <div class="opt" onclick="pick('exp','beginner',this)">
+          <span class="opt-icon">🌱</span>
+          <div class="opt-name">Just for fun</div>
+          <div class="opt-hint">First time or shower singer</div>
+        </div>
+        <div class="opt" onclick="pick('exp','some',this)">
+          <span class="opt-icon">🎤</span>
+          <div class="opt-name">A bit</div>
+          <div class="opt-hint">Done karaoke before</div>
+        </div>
+        <div class="opt" onclick="pick('exp','regular',this)">
+          <span class="opt-icon">⭐</span>
+          <div class="opt-name">Regularly</div>
+          <div class="opt-hint">Part of my life</div>
+        </div>
+      </div>
+
+      <div style="margin-top:1.75rem; text-align:center">
+        <button class="btn btn-primary btn-lg" id="prefNext" onclick="goTones()" disabled>Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ TONE TEST ══════════════════════════ -->
+  <div class="screen" id="sc-tones">
+    <div class="card">
+      <div class="step-label" id="toneLabel">Tone 1 of 6 — Range Finder</div>
+      <h2 style="margin-bottom:0.25rem">Can you match this note?</h2>
+      <p class="lead" style="font-size:0.88rem; margin-bottom:0.5rem">
+        Press ▶ and try to hum or sing along — then tell us how it feels.
+      </p>
+
+      <div class="tone-hero">
+        <div class="note-name" id="noteName">C4</div>
+        <div class="note-octave" id="noteOctave">Middle C</div>
+      </div>
+
+      <div class="piano-range" id="pianoRange"><!-- keys injected by JS --></div>
+
+      <canvas id="waveCanvas"></canvas>
+      <button class="play-ring" id="playBtn" onclick="playCurrentTone()">▶</button>
+
+      <div class="resp-row">
+        <button class="resp-btn resp-low"  onclick="answer('low')">
+          <span class="icon">⬇️</span><span>Too Low</span>
+          <span class="hint">Below my range</span>
+        </button>
+        <button class="resp-btn resp-ok"   onclick="answer('ok')">
+          <span class="icon">✅</span><span>Comfortable</span>
+          <span class="hint">I can sing this</span>
+        </button>
+        <button class="resp-btn resp-high" onclick="answer('high')">
+          <span class="icon">⬆️</span><span>Too High</span>
+          <span class="hint">I'd have to strain</span>
+        </button>
+      </div>
+
+      <div class="dots" id="dots"></div>
+    </div>
+
+    <!-- Mic option -->
+    <div class="mic-strip" style="width:100%;">
+      <button class="btn btn-secondary" id="micBtn" onclick="toggleMic()">🎙️ Use microphone for real-time feedback</button>
+      <div class="mic-meter" id="micMeter"><div class="mic-meter-fill" id="micFill"></div></div>
+      <div class="mic-note" id="micNote">Detected: <span class="mic-detected" id="micDetected">—</span></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ RESULTS ══════════════════════════ -->
+  <div class="screen" id="sc-results">
+    <div class="card" style="text-align:center">
+      <div class="step-label">Your Result</div>
+      <h2>Here's your voice type</h2>
+      <div class="voice-badge">
+        <div class="vb-emoji" id="vtEmoji"></div>
+        <div>
+          <div class="vb-name" id="vtName"></div>
+          <div class="vb-range" id="vtRange"></div>
+        </div>
+      </div>
+      <p class="voice-desc" id="vtDesc"></p>
+    </div>
+
+    <div style="width:100%; margin-top:1.5rem">
+      <div class="res-head">
+        <h2>🎶 Your Picks</h2>
+        <button class="btn btn-secondary" style="font-size:0.82rem; padding:0.5rem 1rem" onclick="shuffleSongs()">🔀 Shuffle</button>
+      </div>
+
+      <div class="chips" id="chips">
+        <button class="chip on"  onclick="applyFilter('all',this)">All</button>
+        <button class="chip"     onclick="applyFilter('crowd pleaser',this)">👥 Crowd Pleasers</button>
+        <button class="chip"     onclick="applyFilter('easy',this)">🌱 Easy</button>
+        <button class="chip"     onclick="applyFilter('80s',this)">🎸 80s</button>
+        <button class="chip"     onclick="applyFilter('90s',this)">📼 90s</button>
+        <button class="chip"     onclick="applyFilter('ballad',this)">💖 Ballads</button>
+        <button class="chip"     onclick="applyFilter('classic',this)">🏆 Classics</button>
+        <button class="chip"     onclick="applyFilter('soul',this)">🔥 Soul / R&amp;B</button>
+      </div>
+
+      <div class="songs" id="songsGrid"></div>
+
+      <div style="text-align:center; margin-top:1.75rem">
+        <button class="btn btn-secondary" onclick="resetApp()">↩ Start Over</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+const S = {
+  gender: null, exp: null,
+  sequence: [],  // indices into TONES array
+  toneIdx: 0,    // current position in sequence
+  results: [],   // 'low' | 'ok' | 'high' per tone
+  voiceType: null,
+  filter: 'all',
+  audioCtx: null,
+  micStream: null, micAnalyser: null, micActive: false, micAnimId: null,
+  waveAnimId: null,
+};
+
+// ════════════════════════════════════════════════════════════════
+// DATA – TONES
+// ════════════════════════════════════════════════════════════════
+const TONES = [
+  { name:'C3',  hz:130.81, label:'Low C',          pianoPos:0  },
+  { name:'G3',  hz:196.00, label:'Low G',          pianoPos:4  },
+  { name:'C4',  hz:261.63, label:'Middle C',       pianoPos:7  },
+  { name:'G4',  hz:392.00, label:'Upper G',        pianoPos:11 },
+  { name:'C5',  hz:523.25, label:'High C',         pianoPos:14 },
+  { name:'G5',  hz:783.99, label:'Very High G',    pianoPos:18 },
+];
+
+// ════════════════════════════════════════════════════════════════
+// DATA – VOICE TYPES
+// ════════════════════════════════════════════════════════════════
+const VOICE = {
+  bass: {
+    name:'Bass', emoji:'🎸', range:'E2 – E4',
+    desc:"The deepest, most powerful male voice. Your low notes carry the room. Think classic rock, country legends, and timeless ballads — where depth and presence rule."
+  },
+  baritone: {
+    name:'Baritone', emoji:'🎵', range:'A2 – A4',
+    desc:"The most common male voice — warm, full, and incredibly versatile. You can handle classic hits, modern pop, and rock anthems with ease. Crowds will instantly connect with you."
+  },
+  tenor: {
+    name:'Tenor', emoji:'⚡', range:'C3 – C5',
+    desc:"Bright, powerful, and capable of hitting those famous high notes in rock anthems. Your range opens the door to some of the most iconic karaoke songs ever written."
+  },
+  alto: {
+    name:'Alto / Contralto', emoji:'🎶', range:'F3 – F5',
+    desc:"Rich, deep, and distinctive — the rarest female voice. Your tone is warm and soulful with natural gravitas. Perfect for powerful, emotionally resonant songs."
+  },
+  mezzoSoprano: {
+    name:'Mezzo-Soprano', emoji:'🌟', range:'A3 – A5',
+    desc:"The most common female voice: warm, expressive, and with incredible range. You can glide between pop hits, soul classics, and power ballads with ease."
+  },
+  soprano: {
+    name:'Soprano', emoji:'✨', range:'C4 – C6',
+    desc:"The highest female voice — bright, soaring, and unforgettable. Those big theatrical moments and climactic high notes? That's your moment to shine."
+  },
+};
+
+// ════════════════════════════════════════════════════════════════
+// DATA – SONGS (40+ entries)
+// ════════════════════════════════════════════════════════════════
+const SONGS = [
+  // ── Bass ─────────────────────────────────────────────────────
+  { t:"Ring of Fire",             a:"Johnny Cash",                  v:["bass","baritone"],                      d:1, tags:["country","classic","crowd pleaser"] },
+  { t:"Folsom Prison Blues",      a:"Johnny Cash",                  v:["bass","baritone"],                      d:1, tags:["country","classic"] },
+  { t:"Hurt",                     a:"Johnny Cash",                  v:["bass","baritone"],                      d:2, tags:["alternative","ballad","classic"] },
+  { t:"Man of Constant Sorrow",   a:"Traditional / O Brother",      v:["bass","baritone"],                      d:2, tags:["country","classic"] },
+  { t:"House of the Rising Sun",  a:"The Animals",                  v:["bass","baritone","tenor"],              d:2, tags:["classic rock","60s"] },
+
+  // ── Baritone ─────────────────────────────────────────────────
+  { t:"Piano Man",                a:"Billy Joel",                   v:["baritone","tenor"],                     d:2, tags:["classic rock","70s","crowd pleaser"] },
+  { t:"Sweet Caroline",           a:"Neil Diamond",                 v:["bass","baritone"],                      d:1, tags:["pop","classic","crowd pleaser","easy"] },
+  { t:"Take Me Home, Country Roads", a:"John Denver",              v:["baritone","tenor"],                     d:1, tags:["country","70s","crowd pleaser","easy"] },
+  { t:"Brown Eyed Girl",          a:"Van Morrison",                 v:["baritone","tenor"],                     d:2, tags:["classic rock","60s","crowd pleaser"] },
+  { t:"Africa",                   a:"Toto",                         v:["baritone","tenor"],                     d:2, tags:["80s","pop rock","crowd pleaser"] },
+  { t:"Summer of '69",            a:"Bryan Adams",                  v:["baritone","tenor"],                     d:2, tags:["80s","rock"] },
+  { t:"Ain't No Sunshine",        a:"Bill Withers",                 v:["baritone","tenor"],                     d:2, tags:["soul","70s","classic"] },
+  { t:"Stand By Me",              a:"Ben E. King",                  v:["baritone","tenor"],                     d:1, tags:["soul","60s","classic","crowd pleaser","easy"] },
+  { t:"Wonderwall",               a:"Oasis",                        v:["baritone","tenor"],                     d:2, tags:["90s","britpop","crowd pleaser"] },
+  { t:"Mr. Brightside",           a:"The Killers",                  v:["baritone","tenor"],                     d:2, tags:["indie rock","2000s","crowd pleaser"] },
+  { t:"With or Without You",      a:"U2",                           v:["baritone","tenor"],                     d:2, tags:["rock","80s","ballad"] },
+  { t:"Roxanne",                  a:"The Police",                   v:["baritone","tenor"],                     d:3, tags:["rock","80s"] },
+  { t:"Can't Help Falling in Love", a:"Elvis Presley",             v:["bass","baritone","tenor"],              d:1, tags:["classic","ballad","crowd pleaser","easy"] },
+  { t:"My Way",                   a:"Frank Sinatra",                v:["baritone","tenor"],                     d:2, tags:["classic","ballad","crowd pleaser"] },
+  { t:"New York, New York",       a:"Frank Sinatra",                v:["baritone","tenor"],                     d:2, tags:["classic","crowd pleaser"] },
+  { t:"500 Miles",                a:"The Proclaimers",              v:["baritone","tenor"],                     d:1, tags:["90s","crowd pleaser","easy"] },
+  { t:"Come On Eileen",           a:"Dexys Midnight Runners",       v:["baritone","tenor","mezzoSoprano"],      d:2, tags:["80s","crowd pleaser"] },
+  { t:"Build Me Up Buttercup",    a:"The Foundations",              v:["baritone","tenor","mezzoSoprano"],      d:2, tags:["60s","classic","crowd pleaser"] },
+  { t:"Sweet Home Alabama",       a:"Lynyrd Skynyrd",               v:["baritone","tenor"],                     d:2, tags:["classic rock","70s","crowd pleaser"] },
+
+  // ── Tenor ────────────────────────────────────────────────────
+  { t:"Don't Stop Believin'",     a:"Journey",                      v:["tenor"],                                d:3, tags:["rock","80s","crowd pleaser"] },
+  { t:"Bohemian Rhapsody",        a:"Queen",                        v:["baritone","tenor"],                     d:5, tags:["classic rock","70s","crowd pleaser"] },
+  { t:"Livin' on a Prayer",       a:"Bon Jovi",                     v:["tenor"],                                d:3, tags:["rock","80s","crowd pleaser"] },
+  { t:"Sweet Child O' Mine",      a:"Guns N' Roses",                v:["tenor"],                                d:3, tags:["rock","80s","classic"] },
+  { t:"Total Eclipse of the Heart", a:"Bonnie Tyler",              v:["tenor","mezzoSoprano"],                 d:4, tags:["80s","ballad","power ballad"] },
+  { t:"Mr. Jones",                a:"Counting Crows",               v:["baritone","tenor"],                     d:2, tags:["90s","alternative"] },
+
+  // ── Alto ─────────────────────────────────────────────────────
+  { t:"Rolling in the Deep",      a:"Adele",                        v:["alto","mezzoSoprano"],                  d:3, tags:["pop","soul","2010s","crowd pleaser"] },
+  { t:"Someone Like You",         a:"Adele",                        v:["alto","mezzoSoprano"],                  d:3, tags:["pop","ballad","2010s"] },
+  { t:"Jolene",                   a:"Dolly Parton",                 v:["alto","mezzoSoprano"],                  d:2, tags:["country","classic","70s"] },
+  { t:"I Will Survive",           a:"Gloria Gaynor",                v:["alto","mezzoSoprano"],                  d:2, tags:["disco","70s","crowd pleaser"] },
+  { t:"Black Velvet",             a:"Alannah Myles",                v:["alto","mezzoSoprano"],                  d:3, tags:["rock","90s"] },
+  { t:"Valerie",                  a:"Amy Winehouse",                v:["alto","mezzoSoprano"],                  d:3, tags:["soul","pop","2000s"] },
+  { t:"Rehab",                    a:"Amy Winehouse",                v:["alto","mezzoSoprano"],                  d:3, tags:["soul","2000s"] },
+  { t:"Killing Me Softly",        a:"Fugees / Roberta Flack",       v:["alto","mezzoSoprano"],                  d:2, tags:["soul","classic","crowd pleaser"] },
+  { t:"9 to 5",                   a:"Dolly Parton",                 v:["alto","mezzoSoprano"],                  d:2, tags:["country","80s","crowd pleaser"] },
+  { t:"Respect",                  a:"Aretha Franklin",              v:["alto","mezzoSoprano","soprano"],        d:3, tags:["soul","classic","crowd pleaser"] },
+  { t:"Torn",                     a:"Natalie Imbruglia",            v:["alto","mezzoSoprano"],                  d:2, tags:["90s","pop"] },
+  { t:"Girls Just Want to Have Fun", a:"Cyndi Lauper",             v:["alto","mezzoSoprano"],                  d:2, tags:["80s","pop","crowd pleaser"] },
+
+  // ── Mezzo-Soprano ────────────────────────────────────────────
+  { t:"Dreams",                   a:"Fleetwood Mac",                v:["mezzoSoprano","soprano"],               d:2, tags:["classic rock","70s"] },
+  { t:"What's Up",                a:"4 Non Blondes",                v:["mezzoSoprano","soprano"],               d:3, tags:["90s","alternative"] },
+  { t:"Dancing Queen",            a:"ABBA",                         v:["alto","mezzoSoprano","soprano"],        d:2, tags:["pop","disco","70s","crowd pleaser"] },
+  { t:"The Greatest Love of All", a:"Whitney Houston",              v:["mezzoSoprano","soprano"],               d:4, tags:["pop","80s","ballad"] },
+  { t:"Shallow",                  a:"Lady Gaga & Bradley Cooper",   v:["baritone","tenor","alto","mezzoSoprano"], d:3, tags:["pop","ballad","2010s","crowd pleaser","duet"] },
+  { t:"Don't You Want Me",        a:"Human League",                 v:["baritone","tenor","alto","mezzoSoprano"], d:1, tags:["80s","synth pop","crowd pleaser","easy","duet"] },
+  { t:"I Say a Little Prayer",    a:"Aretha Franklin",              v:["mezzoSoprano","soprano"],               d:3, tags:["soul","60s","classic"] },
+  { t:"Son of a Preacher Man",    a:"Dusty Springfield",            v:["alto","mezzoSoprano"],                  d:2, tags:["soul","60s","classic"] },
+
+  // ── Soprano ──────────────────────────────────────────────────
+  { t:"My Heart Will Go On",      a:"Celine Dion",                  v:["mezzoSoprano","soprano"],               d:4, tags:["pop","ballad","90s","crowd pleaser"] },
+  { t:"I Will Always Love You",   a:"Whitney Houston",              v:["soprano"],                              d:5, tags:["pop","ballad","90s","crowd pleaser"] },
+  { t:"Defying Gravity",          a:"Wicked / Idina Menzel",        v:["soprano"],                              d:5, tags:["show tunes","ballad"] },
+  { t:"And I Am Telling You",     a:"Jennifer Holliday",            v:["soprano"],                              d:5, tags:["show tunes","soul","ballad"] },
+  { t:"Part of Your World",       a:"The Little Mermaid",           v:["mezzoSoprano","soprano"],               d:3, tags:["show tunes","ballad","crowd pleaser"] },
+  { t:"Think of Me",              a:"Phantom of the Opera",         v:["soprano"],                              d:4, tags:["show tunes","ballad"] },
+  { t:"On My Own",                a:"Les Misérables",               v:["mezzoSoprano","soprano"],               d:4, tags:["show tunes","ballad"] },
+];
+
+// ════════════════════════════════════════════════════════════════
+// FLOATING NOTES
+// ════════════════════════════════════════════════════════════════
+const NOTE_CHARS = ['♩','♪','♫','♬','🎵','🎶'];
+function spawnNotes() {
+  const stage = document.getElementById('stage');
+  setInterval(() => {
+    const el = document.createElement('div');
+    el.className = 'note';
+    el.textContent = NOTE_CHARS[Math.floor(Math.random() * NOTE_CHARS.length)];
+    el.style.left = (Math.random() * 98) + 'vw';
+    el.style.animationDuration = (7 + Math.random() * 7) + 's';
+    el.style.animationDelay = (Math.random() * 1.5) + 's';
+    el.style.fontSize = (0.75 + Math.random() * 1) + 'rem';
+    el.style.opacity = 0;
+    stage.appendChild(el);
+    setTimeout(() => el.remove(), 17000);
+  }, 1100);
+}
+spawnNotes();
+
+// ════════════════════════════════════════════════════════════════
+// PROGRESS
+// ════════════════════════════════════════════════════════════════
+function setProgress(pct, label) {
+  const w = document.getElementById('progressWrap');
+  w.style.display = 'block';
+  document.getElementById('progressFill').style.width = pct + '%';
+  if (label) document.getElementById('progressLabel').textContent = label;
+}
+
+// ════════════════════════════════════════════════════════════════
+// SCREEN NAVIGATION
+// ════════════════════════════════════════════════════════════════
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('sc-' + id).classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════════════
+// WELCOME → START
+// ════════════════════════════════════════════════════════════════
+function startApp() {
+  setProgress(8, 'Step 1 — About Your Voice');
+  show('prefs');
+}
+
+// ════════════════════════════════════════════════════════════════
+// PREFERENCES
+// ════════════════════════════════════════════════════════════════
+function pick(field, value, el) {
+  S[field] = value;
+  const parentId = field === 'gender' ? 'genderOpts' : 'expOpts';
+  document.querySelectorAll('#' + parentId + ' .opt').forEach(o => o.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('prefNext').disabled = !(S.gender && S.exp);
+}
+
+// ════════════════════════════════════════════════════════════════
+// TONE TEST SETUP
+// ════════════════════════════════════════════════════════════════
+function goTones() {
+  // Adaptive sequence based on gender
+  if (S.gender === 'male')   S.sequence = [0,1,2,3,4];    // C3→C5
+  else if (S.gender === 'female') S.sequence = [1,2,3,4,5]; // G3→G5
+  else                       S.sequence = [0,1,2,3,4,5];   // full range
+
+  S.toneIdx = 0; S.results = [];
+  buildPiano();
+  renderTone();
+  renderDots();
+  setProgress(30, 'Step 2 — Tone Matching');
+  show('tones');
+}
+
+// Mini piano keys: 21 positions across ~2 octaves
+function buildPiano() {
+  const container = document.getElementById('pianoRange');
+  // White key pattern in 2 octaves (C to B = positions 0,1,2,3,4,5,6)
+  // Simplified: just draw 21 alternating-ish keys as reference
+  const pattern = [
+    {c:'white',pos:0},{c:'black',pos:1},{c:'white',pos:1},{c:'black',pos:2},
+    {c:'white',pos:2},{c:'white',pos:3},{c:'black',pos:4},{c:'white',pos:4},
+    {c:'black',pos:5},{c:'white',pos:5},{c:'black',pos:6},{c:'white',pos:6},
+    {c:'white',pos:7},{c:'black',pos:8},{c:'white',pos:8},{c:'black',pos:9},
+    {c:'white',pos:9},{c:'white',pos:10},{c:'black',pos:11},{c:'white',pos:11},
+    {c:'white',pos:12},
+  ];
+  container.innerHTML = pattern.map((k,i) =>
+    `<div class="piano-key ${k.c}" id="pk-${i}" data-pos="${k.pos}"></div>`
+  ).join('');
+}
+
+function highlightPianoKey(pianoPos) {
+  document.querySelectorAll('.piano-key').forEach(k => k.classList.remove('active'));
+  // Find closest key to pianoPos
+  let best = null, bestDist = Infinity;
+  document.querySelectorAll('.piano-key').forEach(k => {
+    const d = Math.abs(parseInt(k.dataset.pos) - pianoPos % 13);
+    if (d < bestDist) { bestDist = d; best = k; }
+  });
+  if (best) best.classList.add('active');
+}
+
+function renderTone() {
+  const idx = S.sequence[S.toneIdx];
+  const tone = TONES[idx];
+  document.getElementById('noteName').textContent = tone.name;
+  document.getElementById('noteOctave').textContent = tone.label;
+  document.getElementById('toneLabel').textContent =
+    `Tone ${S.toneIdx + 1} of ${S.sequence.length} — Range Finder`;
+  highlightPianoKey(tone.pianoPos);
+
+  const pct = 30 + (S.toneIdx / S.sequence.length) * 45;
+  setProgress(pct, `Tone ${S.toneIdx + 1} of ${S.sequence.length}`);
+  drawFlatWave();
+}
+
+function renderDots() {
+  const el = document.getElementById('dots');
+  el.innerHTML = S.sequence.map((_, i) => {
+    let cls = 'dot';
+    if (i < S.results.length) cls += ' ' + S.results[i];
+    else if (i === S.toneIdx) cls += ' current';
+    return `<div class="${cls}"></div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// AUDIO – TONE PLAYBACK
+// ════════════════════════════════════════════════════════════════
+function getCtx() {
+  if (!S.audioCtx) S.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (S.audioCtx.state === 'suspended') S.audioCtx.resume();
+  return S.audioCtx;
+}
+
+let toneStopTimeout = null;
+
+function playCurrentTone() {
+  const idx = S.sequence[S.toneIdx];
+  playHz(TONES[idx].hz);
+}
+
+function playHz(hz, dur = 2.8) {
+  const ctx = getCtx();
+  const btn = document.getElementById('playBtn');
+  if (toneStopTimeout) clearTimeout(toneStopTimeout);
+
+  btn.classList.add('playing');
+  btn.textContent = '🔊';
+
+  const master = ctx.createGain();
+  master.connect(ctx.destination);
+  master.gain.setValueAtTime(0, ctx.currentTime);
+  master.gain.linearRampToValueAtTime(0.42, ctx.currentTime + 0.06);
+  master.gain.setValueAtTime(0.42, ctx.currentTime + 0.4);
+  master.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+
+  // Harmonics for a bell/piano-like timbre
+  [
+    [hz,     1.00],
+    [hz * 2, 0.45],
+    [hz * 3, 0.22],
+    [hz * 4, 0.08],
+  ].forEach(([f, g]) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = f;
+    gain.gain.value = g;
+    osc.connect(gain); gain.connect(master);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
+  });
+
+  animatePlayWave(hz, dur);
+
+  toneStopTimeout = setTimeout(() => {
+    btn.classList.remove('playing');
+    btn.textContent = '▶';
+    drawFlatWave();
+  }, dur * 1000);
+}
+
+// ════════════════════════════════════════════════════════════════
+// WAVE CANVAS
+// ════════════════════════════════════════════════════════════════
+function drawFlatWave() {
+  const canvas = document.getElementById('waveCanvas');
+  const ctx = canvas.getContext('2d');
+  resizeCanvas(canvas);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1.5;
+  ctx.moveTo(0, canvas.height / 2);
+  ctx.lineTo(canvas.width, canvas.height / 2);
+  ctx.stroke();
+}
+
+function resizeCanvas(canvas) {
+  const w = canvas.clientWidth || 600;
+  if (canvas.width !== w) canvas.width = w;
+  if (canvas.height !== 52) canvas.height = 52;
+}
+
+function animatePlayWave(hz, durSec) {
+  if (S.waveAnimId) cancelAnimationFrame(S.waveAnimId);
+  const canvas = document.getElementById('waveCanvas');
+  const ctx = canvas.getContext('2d');
+  resizeCanvas(canvas);
+  const start = performance.now();
+  const dur = durSec * 1000;
+
+  function frame(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / dur, 1);
+    const amp = Math.sin(progress * Math.PI) * 18;
+
+    resizeCanvas(canvas);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    grad.addColorStop(0,   'rgba(124,58,237,0.4)');
+    grad.addColorStop(0.5, 'rgba(6,182,212,0.85)');
+    grad.addColorStop(1,   'rgba(124,58,237,0.4)');
+
+    ctx.beginPath();
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+
+    const pts = 120;
+    for (let i = 0; i <= pts; i++) {
+      const x = (i / pts) * canvas.width;
+      const y = canvas.height / 2 +
+        Math.sin((i / pts) * Math.PI * 5 + elapsed * 0.009) * amp +
+        Math.sin((i / pts) * Math.PI * 9 + elapsed * 0.006) * (amp * 0.35);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    if (progress < 1) S.waveAnimId = requestAnimationFrame(frame);
+  }
+  S.waveAnimId = requestAnimationFrame(frame);
+}
+
+// Draw mic waveform from buffer
+function drawMicWave(buf) {
+  const canvas = document.getElementById('waveCanvas');
+  const ctx = canvas.getContext('2d');
+  resizeCanvas(canvas);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  grad.addColorStop(0,   'rgba(244,63,94,0.4)');
+  grad.addColorStop(0.5, 'rgba(124,58,237,0.9)');
+  grad.addColorStop(1,   'rgba(244,63,94,0.4)');
+
+  ctx.beginPath();
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2;
+
+  const step = Math.ceil(buf.length / canvas.width);
+  for (let i = 0; i < canvas.width; i++) {
+    const v = buf[i * step] || 0;
+    const y = canvas.height / 2 + v * 35;
+    i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y);
+  }
+  ctx.stroke();
+}
+
+// ════════════════════════════════════════════════════════════════
+// TONE ANSWER
+// ════════════════════════════════════════════════════════════════
+function answer(resp) {
+  S.results.push(resp);
+  renderDots();
+
+  // Visual feedback flash
+  const map = { low:'var(--rose)', ok:'var(--green)', high:'var(--cyan)' };
+  const btn = document.querySelector('.resp-' + resp);
+  if (btn) {
+    const orig = btn.style.background;
+    btn.style.background = map[resp] + '33';
+    setTimeout(() => btn.style.background = orig, 300);
+  }
+
+  S.toneIdx++;
+  if (S.toneIdx >= S.sequence.length) {
+    setTimeout(showResults, 480);
+  } else {
+    renderTone();
+    renderDots();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// VOICE TYPE ALGORITHM
+// ════════════════════════════════════════════════════════════════
+function determineVoiceType() {
+  const data = S.sequence.map((ti, i) => ({ hz: TONES[ti].hz, resp: S.results[i] }));
+
+  const okHz   = data.filter(d => d.resp === 'ok').map(d => d.hz);
+  const lowHz  = data.filter(d => d.resp === 'low').map(d => d.hz);
+  const highHz = data.filter(d => d.resp === 'high').map(d => d.hz);
+
+  let center;
+  if (okHz.length > 0) {
+    center = okHz.reduce((a, b) => a + b, 0) / okHz.length;
+  } else if (highHz.length > 0 && lowHz.length > 0) {
+    const minHigh = Math.min(...highHz);
+    const maxLow  = Math.max(...lowHz);
+    center = (minHigh + maxLow) / 2;
+  } else if (highHz.length === data.length) {
+    center = Math.min(...highHz) * 0.65;   // everything too high → very low voice
+  } else if (lowHz.length === data.length) {
+    center = Math.max(...lowHz) * 1.55;    // everything too low  → very high voice
+  } else {
+    // Mixed data, estimate from boundary
+    center = highHz.length > lowHz.length
+      ? Math.min(...highHz) * 0.8
+      : Math.max(...lowHz)  * 1.2;
+  }
+
+  if (S.gender === 'male') {
+    if (center < 170) return 'bass';
+    if (center < 290) return 'baritone';
+    return 'tenor';
+  }
+  if (S.gender === 'female') {
+    if (center < 245) return 'alto';
+    if (center < 430) return 'mezzoSoprano';
+    return 'soprano';
+  }
+  // gender === 'unsure'
+  if (center < 155) return 'bass';
+  if (center < 220) return 'baritone';
+  if (center < 320) return 'tenor';
+  if (center < 410) return 'alto';
+  if (center < 620) return 'mezzoSoprano';
+  return 'soprano';
+}
+
+// ════════════════════════════════════════════════════════════════
+// RESULTS
+// ════════════════════════════════════════════════════════════════
+function showResults() {
+  stopMic();
+  const vt = determineVoiceType();
+  S.voiceType = vt;
+  const info = VOICE[vt];
+
+  document.getElementById('vtEmoji').textContent = info.emoji;
+  document.getElementById('vtName').textContent  = info.name;
+  document.getElementById('vtRange').textContent = info.range;
+  document.getElementById('vtDesc').textContent  = info.desc;
+
+  setProgress(100, 'Done!');
+  renderSongs();
+  show('results');
+}
+
+let currentSongs = [];
+
+function renderSongs() {
+  let pool = SONGS.filter(s => s.v.includes(S.voiceType));
+  if (S.filter !== 'all') {
+    if (S.filter === 'easy') pool = pool.filter(s => s.d <= 2);
+    else pool = pool.filter(s => s.tags.includes(S.filter));
+  }
+  pool = shuffle(pool);
+  currentSongs = pool;
+
+  const grid = document.getElementById('songsGrid');
+  if (pool.length === 0) {
+    grid.innerHTML = '<div class="empty">No songs found for that filter.<br>Try a different one!</div>';
+    return;
+  }
+
+  grid.innerHTML = pool.slice(0, 12).map((s, i) => `
+    <div class="song-card">
+      <div class="song-num">${i + 1}</div>
+      <div class="song-info">
+        <div class="song-title">${s.t}</div>
+        <div class="song-artist">${s.a}</div>
+        <div class="song-tags">
+          ${s.tags.map(tag => `<span class="tag ${tag === 'crowd pleaser' ? 'crowd' : (tag === 'easy' ? 'easy' : '')}">${tag}</span>`).join('')}
+        </div>
+      </div>
+      <div class="song-right">
+        <div class="stars">${'★'.repeat(s.d)}${'☆'.repeat(5 - s.d)}</div>
+        <div class="diff-label">difficulty</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function applyFilter(tag, el) {
+  S.filter = tag;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  renderSongs();
+}
+
+function shuffleSongs() { renderSongs(); }
+
+// ════════════════════════════════════════════════════════════════
+// MIC DETECTION
+// ════════════════════════════════════════════════════════════════
+async function toggleMic() {
+  if (S.micActive) { stopMic(); return; }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    S.micStream   = stream;
+    const ctx     = getCtx();
+    const source  = ctx.createMediaStreamSource(stream);
+    S.micAnalyser = ctx.createAnalyser();
+    S.micAnalyser.fftSize = 2048;
+    S.micAnalyser.smoothingTimeConstant = 0.6;
+    source.connect(S.micAnalyser);
+
+    S.micActive = true;
+    document.getElementById('micBtn').textContent = '🔴 Stop Mic';
+    document.getElementById('micBtn').style.borderColor = 'var(--rose)';
+    document.getElementById('micMeter').style.display = 'block';
+    document.getElementById('micNote').style.display  = 'block';
+
+    micLoop();
+  } catch (e) {
+    alert('Microphone access denied. Please allow it in your browser settings.');
+  }
+}
+
+function stopMic() {
+  if (!S.micActive) return;
+  if (S.micStream)  S.micStream.getTracks().forEach(t => t.stop());
+  if (S.micAnimId)  cancelAnimationFrame(S.micAnimId);
+  S.micActive = false; S.micStream = null; S.micAnalyser = null;
+  const btn = document.getElementById('micBtn');
+  if (btn) {
+    btn.textContent = '🎙️ Use microphone for real-time feedback';
+    btn.style.borderColor = '';
+  }
+  document.getElementById('micMeter').style.display = 'none';
+  document.getElementById('micNote').style.display  = 'none';
+  drawFlatWave();
+}
+
+function micLoop() {
+  if (!S.micActive || !S.micAnalyser) return;
+
+  const bufLen  = S.micAnalyser.fftSize;
+  const timeBuf = new Float32Array(bufLen);
+
+  function tick() {
+    if (!S.micActive) return;
+    S.micAnalyser.getFloatTimeDomainData(timeBuf);
+
+    // RMS level
+    let rms = 0;
+    for (let i = 0; i < bufLen; i++) rms += timeBuf[i] * timeBuf[i];
+    rms = Math.sqrt(rms / bufLen);
+    const lvl = Math.min(rms / 0.12, 1);
+    document.getElementById('micFill').style.width = (lvl * 100) + '%';
+
+    // Pitch detection (autocorrelation)
+    if (rms > 0.015) {
+      const freq = autocorrelate(timeBuf, S.audioCtx.sampleRate);
+      if (freq > 70 && freq < 1200) {
+        document.getElementById('micDetected').textContent = freqToNote(freq) + ' (' + Math.round(freq) + ' Hz)';
+        drawMicWave(timeBuf);
+      }
+    } else {
+      document.getElementById('micDetected').textContent = '—  (sing or hum something)';
+      drawFlatWave();
+    }
+
+    S.micAnimId = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+// Autocorrelation pitch detector (YIN-inspired)
+function autocorrelate(buf, sr) {
+  const SIZE = buf.length;
+  let r1 = 0, r2 = SIZE - 1;
+  const thres = 0.18;
+  for (let i = 0; i < SIZE / 2; i++) { if (Math.abs(buf[i]) > thres) { r1 = i; break; } }
+  for (let i = 1; i < SIZE / 2; i++) { if (Math.abs(buf[SIZE - i]) > thres) { r2 = SIZE - i; break; } }
+
+  const trimmed  = buf.slice(r1, r2 + 1);
+  const n        = trimmed.length;
+  const corr     = new Float32Array(n);
+  for (let lag = 0; lag < n; lag++) {
+    for (let j = 0; j < n - lag; j++) corr[lag] += trimmed[j] * trimmed[j + lag];
+  }
+
+  let d = 1;
+  while (d < n - 1 && corr[d] > corr[d + 1]) d++;
+
+  let maxVal = -1, maxPos = -1;
+  for (let i = d; i < n; i++) {
+    if (corr[i] > maxVal) { maxVal = corr[i]; maxPos = i; }
+  }
+  if (maxPos < 1) return -1;
+
+  // Parabolic interpolation
+  const [x1, x2, x3] = [corr[maxPos - 1], corr[maxPos], corr[maxPos + 1] || 0];
+  const a = (x1 + x3 - 2 * x2) / 2;
+  const b = (x3 - x1) / 2;
+  const t = a ? maxPos - b / (2 * a) : maxPos;
+  return sr / t;
+}
+
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function freqToNote(freq) {
+  const semis = Math.round(12 * Math.log2(freq / 440)) + 57;
+  const octave = Math.floor(((semis % 12 === 0 ? semis : semis) + 120) / 12) - 10 + 4;
+  const name   = NOTE_NAMES[((semis % 12) + 12) % 12];
+  return name + Math.floor(semis / 12);
+}
+
+// ════════════════════════════════════════════════════════════════
+// RESET
+// ════════════════════════════════════════════════════════════════
+function resetApp() {
+  stopMic();
+  Object.assign(S, {
+    gender:null, exp:null, sequence:[], toneIdx:0, results:[],
+    voiceType:null, filter:'all',
+  });
+  document.querySelectorAll('.opt').forEach(o => o.classList.remove('sel'));
+  document.getElementById('prefNext').disabled = true;
+
+  const pw = document.getElementById('progressWrap');
+  pw.style.display = 'none';
+  document.getElementById('progressFill').style.width = '0%';
+
+  show('welcome');
+}
+
+// ════════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Init wave on page load
+window.addEventListener('load', () => setTimeout(drawFlatWave, 50));
+window.addEventListener('resize', drawFlatWave);
+</script>
+</body>
+</html>
